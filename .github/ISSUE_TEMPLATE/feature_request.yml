@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an improvement for Porthole
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Porthole is intentionally minimal. Feature requests that add recording,
+        overlays, or other overhead may be out of scope — but we'd still like
+        to hear the use case.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what's awkward today?
+      placeholder: I use Porthole to monitor a capture card and I need...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like this to work?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other apps, workflows, or lighter-weight approaches you tried
