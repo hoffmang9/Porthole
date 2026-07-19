@@ -55,8 +55,9 @@ swift format format --in-place --recursive --configuration .swift-format Sources
 
 1. Open an issue first for large changes so we can agree on scope — Porthole
    stays small by design.
-2. Keep changes focused. Prefer extending the single source file over adding
-   dependencies or project structure.
+2. Keep changes focused. Prefer small extensions in `Sources/Porthole/` over
+   new dependencies or project structure. Capture-session work belongs in
+   `CaptureSessionCoordinator`; window/UI wiring stays in `main.swift`.
 3. CI must pass (`pre-commit run --all-files` and `./scripts/test-e2e.sh` on macOS).
 4. Match existing style: run `pre-commit run --all-files` before pushing; use
    `./scripts/lint.sh` for Swift-only checks while iterating. System frameworks

@@ -34,7 +34,7 @@ final class CapturePanel: NSView {
   private static let noInputTitle = "— no input —"
 
   private let session = AVCaptureSession()
-  private let coordinator: CaptureSessionCoordinator
+  let coordinator: CaptureSessionCoordinator
   private let previewLayer: AVCaptureVideoPreviewLayer
   private let picker = NSPopUpButton(frame: .zero, pullsDown: false)
   private var devices: [AVCaptureDevice] = []
@@ -120,12 +120,13 @@ final class CapturePanel: NSView {
     repopulatePicker()
     if selected == Self.noInputTitle {
       picker.selectItem(withTitle: Self.noInputTitle)
+      pickerChanged()
       return
     }
     if restoreSelection(selected) {
       return
     }
-    autoSelectFirstExternal()
+    selectFallbackDevice()
   }
 
   @objc private func pickerChanged() {
@@ -162,11 +163,12 @@ final class CapturePanel: NSView {
     return true
   }
 
-  private func autoSelectFirstExternal() {
-    guard let external = devices.first(where: VideoDevices.isExternal) else {
-      return
+  private func selectFallbackDevice() {
+    if let external = devices.first(where: VideoDevices.isExternal) {
+      picker.selectItem(withTitle: external.localizedName)
+    } else {
+      picker.selectItem(withTitle: Self.noInputTitle)
     }
-    picker.selectItem(withTitle: external.localizedName)
     pickerChanged()
   }
 
@@ -182,11 +184,17 @@ final class CapturePanel: NSView {
 // MARK: - App
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+  /// Fallback lock when there is no active video (matches the default 1024×768 window).
+  private static let defaultContentAspectRatio = NSSize(width: 4, height: 3)
+
   private var window: NSWindow!
   private var capturePanel: CapturePanel!
 
   func applicationDidFinishLaunching(_ note: Notification) {
     capturePanel = CapturePanel(frame: .zero)
+    capturePanel.coordinator.onVideoDimensionsChanged = { [weak self] dimensions in
+      self?.lockContentAspectRatio(to: dimensions)
+    }
 
     window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1024, height: 768),
@@ -194,12 +202,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       backing: .buffered, defer: false)
     window.title = "Porthole"
     window.contentView = capturePanel
-    window.contentAspectRatio = NSSize(width: 4, height: 3)  // match XGA
+    lockContentAspectRatio(to: nil)
     window.collectionBehavior = [.fullScreenPrimary]
     window.center()
     window.makeKeyAndOrderFront(nil)
 
     requestCameraAccessIfNeeded()
+  }
+
+  /// Enforces resize lock from video pixel dimensions, or the app default when `nil`.
+  private func lockContentAspectRatio(to dimensions: CGSize?) {
+    guard let dimensions else {
+      window.contentAspectRatio = Self.defaultContentAspectRatio
+      return
+    }
+    window.contentAspectRatio = NSSize(width: dimensions.width, height: dimensions.height)
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool {

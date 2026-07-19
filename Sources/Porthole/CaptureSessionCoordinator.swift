@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import AVFoundation
+import CoreMedia
 import os
 
 /// Owns capture-session mutations on a dedicated queue and guards async UI callbacks
@@ -16,6 +17,8 @@ final class CaptureSessionCoordinator {
 
   var onFailure: ((String) -> Void)?
   var onErrorCleared: (() -> Void)?
+  /// Active format pixel dimensions on the main queue, or `nil` when there is no video.
+  var onVideoDimensionsChanged: ((CGSize?) -> Void)?
 
   init(session: AVCaptureSession) {
     self.session = session
@@ -26,6 +29,7 @@ final class CaptureSessionCoordinator {
     queue.sync {
       generation += 1
       tearDownSession()
+      reportVideoDimensions(nil, generation: generation)
     }
   }
 
@@ -76,12 +80,26 @@ final class CaptureSessionCoordinator {
     } else if session.isRunning {
       session.stopRunning()
     }
+    reportVideoDimensions(device.flatMap(Self.videoDimensions(of:)), generation: generation)
     clearCaptureError(generation: generation)
+  }
+
+  private static func videoDimensions(of device: AVCaptureDevice) -> CGSize? {
+    let dims = CMVideoFormatDescriptionGetDimensions(device.activeFormat.formatDescription)
+    guard dims.width > 0, dims.height > 0 else { return nil }
+    return CGSize(width: CGFloat(dims.width), height: CGFloat(dims.height))
+  }
+
+  private func reportVideoDimensions(_ dimensions: CGSize?, generation: UInt64) {
+    dispatchUIIfCurrent(generation: generation) { [weak self] in
+      self?.onVideoDimensionsChanged?(dimensions)
+    }
   }
 
   private func failCapture(_ message: String, generation: UInt64) {
     tearDownSession()
     log.error("\(message, privacy: .public)")
+    reportVideoDimensions(nil, generation: generation)
     dispatchUIIfCurrent(generation: generation) { [weak self] in
       self?.onFailure?(message)
     }
