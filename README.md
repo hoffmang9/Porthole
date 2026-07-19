@@ -14,8 +14,9 @@ it idles at roughly zero CPU with a live stream.
 - Auto-selects the first external video device on launch — zero-touch on boot
 - Hot-plug aware: devices appear/disappear from the picker as they connect
 - Device picker fades out when the mouse leaves the window
-- 4:3 window aspect lock (suits XGA/VGA sources); ⌘F for full screen
-- Single Swift file, no dependencies beyond system frameworks
+- Window aspect lock follows the selected device’s active capture format
+  (4:3, 16:9, …), falling back to 4:3 with no input; ⌘F for full screen
+- No dependencies beyond system frameworks
 
 ## Building
 
