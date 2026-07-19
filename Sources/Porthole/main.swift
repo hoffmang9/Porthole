@@ -7,7 +7,6 @@
 
 import AVFoundation
 import AppKit
-import os
 
 // MARK: - Video device discovery
 
@@ -34,16 +33,14 @@ final class CapturePanel: NSView {
 
   private static let noInputTitle = "— no input —"
 
-  private let log = Logger(subsystem: "org.porthole.app", category: "capture")
-
   private let session = AVCaptureSession()
+  private let coordinator: CaptureSessionCoordinator
   private let previewLayer: AVCaptureVideoPreviewLayer
   private let picker = NSPopUpButton(frame: .zero, pullsDown: false)
-  private let sessionQueue = DispatchQueue(label: "capture.session")
   private var devices: [AVCaptureDevice] = []
-  private var activeDeviceUniqueID: String?
 
   override init(frame: NSRect) {
+    coordinator = CaptureSessionCoordinator(session: session)
     previewLayer = AVCaptureVideoPreviewLayer(session: session)
     super.init(frame: frame)
 
@@ -65,6 +62,13 @@ final class CapturePanel: NSView {
       picker.widthAnchor.constraint(lessThanOrEqualToConstant: 340),
     ])
 
+    coordinator.onFailure = { [weak self] message in
+      self?.selectNoInput(showError: message)
+    }
+    coordinator.onErrorCleared = { [weak self] in
+      self?.picker.toolTip = nil
+    }
+
     NotificationCenter.default.addObserver(
       self, selector: #selector(refreshDevices),
       name: .AVCaptureDeviceWasConnected, object: nil)
@@ -80,6 +84,7 @@ final class CapturePanel: NSView {
   }
 
   func resetWithoutCameraAccess() {
+    coordinator.invalidate()
     devices = []
     repopulatePicker()
     selectNoInput(
@@ -113,6 +118,10 @@ final class CapturePanel: NSView {
     discoverDevices()
     let selected = picker.titleOfSelectedItem
     repopulatePicker()
+    if selected == Self.noInputTitle {
+      picker.selectItem(withTitle: Self.noInputTitle)
+      return
+    }
     if restoreSelection(selected) {
       return
     }
@@ -122,39 +131,7 @@ final class CapturePanel: NSView {
   @objc private func pickerChanged() {
     let index = picker.indexOfSelectedItem - 1  // slot 0 is "no input"
     let device = (index >= 0 && index < devices.count) ? devices[index] : nil
-    sessionQueue.async { [self] in
-      session.beginConfiguration()
-      for input in session.inputs {
-        session.removeInput(input)
-      }
-
-      if let device {
-        do {
-          let input = try AVCaptureDeviceInput(device: device)
-          guard session.canAddInput(input) else {
-            failCapture("Cannot add input for \(device.localizedName)")
-            return
-          }
-          session.addInput(input)
-        } catch {
-          failCapture("Could not open \(device.localizedName): \(error.localizedDescription)")
-          return
-        }
-      }
-
-      session.commitConfiguration()
-      if let device {
-        activeDeviceUniqueID = device.uniqueID
-        if !session.isRunning { session.startRunning() }
-        clearCaptureError()
-      } else {
-        activeDeviceUniqueID = nil
-        if session.isRunning {
-          session.stopRunning()
-        }
-        clearCaptureError()
-      }
-    }
+    coordinator.setDevice(device)
   }
 
   private func discoverDevices() {
@@ -181,9 +158,7 @@ final class CapturePanel: NSView {
       return false
     }
     picker.selectItem(withTitle: selected)
-    if device.uniqueID != activeDeviceUniqueID {
-      pickerChanged()
-    }
+    coordinator.syncDeviceIfNeeded(device)
     return true
   }
 
@@ -195,31 +170,12 @@ final class CapturePanel: NSView {
     pickerChanged()
   }
 
-  private func failCapture(_ message: String) {
-    session.commitConfiguration()
-    activeDeviceUniqueID = nil
-    if session.isRunning {
-      session.stopRunning()
-    }
-    log.error("\(message, privacy: .public)")
-    DispatchQueue.main.async { [weak self] in
-      self?.selectNoInput(showError: message)
-    }
-  }
-
   private func selectNoInput(showError message: String?) {
     if picker.itemTitles.isEmpty {
       repopulatePicker()
     }
     picker.selectItem(withTitle: Self.noInputTitle)
     picker.toolTip = message
-    activeDeviceUniqueID = nil
-  }
-
-  private func clearCaptureError() {
-    DispatchQueue.main.async { [weak self] in
-      self?.picker.toolTip = nil
-    }
   }
 }
 
