@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck
+
+  - repo: local
+    hooks:
+      - id: swift-format
+        name: swift-format
+        entry: swift format format --in-place --configuration .swift-format
+        language: system
+        types: [swift]
+      - id: lint
+        name: lint
+        entry: ./scripts/lint.sh
+        language: system
+        pass_filenames: false
+        always_run: true

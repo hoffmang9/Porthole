@@ -6,9 +6,36 @@ on:
   pull_request:
 
 jobs:
-  build:
+  lint:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run linters
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files
+
+  build:
+    needs: lint
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Build release bundles
         run: ./build.sh
+
+      - name: Upload app bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: porthole-apps
+          path: |
+            dist/Porthole-arm64.app
+            dist/Porthole-x86_64.app
+            dist/Porthole-universal.app
+          if-no-files-found: error
+
+      - name: Run end-to-end tests
+        run: ./scripts/run-tests.sh

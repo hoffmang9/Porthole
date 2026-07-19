@@ -8,6 +8,10 @@ let package = Package(
         .executableTarget(
             name: "Porthole",
             path: "Sources/Porthole"
-        )
+        ),
+        .testTarget(
+            name: "PortholeE2ETests",
+            path: "Tests/PortholeE2ETests"
+        ),
     ]
 )

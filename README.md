@@ -30,6 +30,19 @@ This produces three ad-hoc-signed bundles in `dist/`:
 - `Porthole-x86_64.app` — Intel
 - `Porthole-universal.app` — both, in one bundle
 
+## Testing
+
+End-to-end tests build all release bundles, validate bundle metadata and
+architectures, verify code signatures, smoke-launch the universal app, and
+run XCTest checks:
+
+    ./scripts/test-e2e.sh
+
+To re-run XCTest checks and the launch smoke test against an existing `dist/`
+build:
+
+    ./scripts/run-tests.sh
+
 ## Notes
 
 - macOS 13+ (Ventura or later)

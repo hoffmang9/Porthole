@@ -10,11 +10,45 @@ Requires macOS 13+ and Xcode Command Line Tools (`xcode-select --install`):
 ./build.sh
 ```
 
-Release bundles land in `dist/`. To run locally during development:
+Release bundles land in `dist/`. To run the full end-to-end suite:
 
 ```bash
-swift build -c release
-open dist/Porthole-universal.app   # after build.sh
+./scripts/test-e2e.sh
+```
+
+To build only:
+
+```bash
+./build.sh
+open dist/Porthole-universal.app
+```
+
+## Linting and formatting
+
+Install [pre-commit](https://pre-commit.com/) once, then enable hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+Hooks format Swift files, run shellcheck on shell scripts, then run
+`./scripts/lint.sh` (strict swift-format). To run the same checks manually:
+
+```bash
+pre-commit run --all-files
+```
+
+Swift-only strict lint:
+
+```bash
+./scripts/lint.sh
+```
+
+To format Swift without committing:
+
+```bash
+swift format format --in-place --recursive --configuration .swift-format Sources Tests
 ```
 
 ## Pull requests
@@ -23,9 +57,10 @@ open dist/Porthole-universal.app   # after build.sh
    stays small by design.
 2. Keep changes focused. Prefer extending the single source file over adding
    dependencies or project structure.
-3. CI must pass (`./build.sh` on macOS).
-4. Match existing style: minimal comments, system frameworks only, no
-   storyboards or nibs.
+3. CI must pass (`pre-commit run --all-files` and `./scripts/test-e2e.sh` on macOS).
+4. Match existing style: run `pre-commit run --all-files` before pushing; use
+   `./scripts/lint.sh` for Swift-only checks while iterating. System frameworks
+   only, no storyboards or nibs.
 
 ## Releases
 
