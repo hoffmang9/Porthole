@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/hoffmang9/Porthole/blob/main/CONTRIBUTING.md
+    about: Build, lint, and pull request expectations

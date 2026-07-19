@@ -5,18 +5,13 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.10.0.1
     hooks:
       - id: shellcheck
 
   - repo: local
     hooks:
-      - id: swift-format
-        name: swift-format
-        entry: swift format format --in-place --configuration .swift-format
-        language: system
-        types: [swift]
       - id: lint
         name: lint
         entry: ./scripts/lint.sh
