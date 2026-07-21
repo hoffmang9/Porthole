@@ -183,7 +183,7 @@ final class CapturePanel: NSView {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
   /// Fallback lock when there is no active video (matches the default 1024×768 window).
   private static let defaultContentAspectRatio = NSSize(width: 4, height: 3)
 
@@ -193,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ note: Notification) {
     capturePanel = CapturePanel(frame: .zero)
     capturePanel.coordinator.onVideoDimensionsChanged = { [weak self] dimensions in
-      self?.lockContentAspectRatio(to: dimensions)
+      self?.applyVideoDimensions(dimensions)
     }
 
     window = NSWindow(
@@ -202,7 +202,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       backing: .buffered, defer: false)
     window.title = "Porthole"
     window.contentView = capturePanel
-    lockContentAspectRatio(to: nil)
+    window.delegate = self
+    applyVideoDimensions(nil)
     window.collectionBehavior = [.fullScreenPrimary]
     window.center()
     window.makeKeyAndOrderFront(nil)
@@ -210,13 +211,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     requestCameraAccessIfNeeded()
   }
 
-  /// Enforces resize lock from video pixel dimensions, or the app default when `nil`.
-  private func lockContentAspectRatio(to dimensions: CGSize?) {
-    guard let dimensions else {
-      window.contentAspectRatio = Self.defaultContentAspectRatio
-      return
+  func windowDidExitFullScreen(_ notification: Notification) {
+    reshapeContentToMatchAspectRatio()
+  }
+
+  /// Locks resize to the video aspect and reshapes the window so the preview is not letterboxed.
+  private func applyVideoDimensions(_ dimensions: CGSize?) {
+    let ratio =
+      dimensions.map { NSSize(width: $0.width, height: $0.height) }
+      ?? Self.defaultContentAspectRatio
+    window.contentAspectRatio = ratio
+    reshapeContentToMatchAspectRatio()
+  }
+
+  /// Fits content to `window.contentAspectRatio` within the visible screen. No-op while full screen.
+  private func reshapeContentToMatchAspectRatio() {
+    guard !window.styleMask.contains(.fullScreen) else { return }
+    let ratio = window.contentAspectRatio
+    guard ratio.width > 0, ratio.height > 0 else { return }
+
+    let current = window.contentRect(forFrameRect: window.frame).size
+    guard current.width > 0 else { return }
+
+    var contentWidth = current.width
+    var contentHeight = contentWidth * ratio.height / ratio.width
+
+    if let screen = window.screen ?? NSScreen.main {
+      let chromeWidth = window.frame.width - current.width
+      let chromeHeight = window.frame.height - current.height
+      let maxWidth = max(screen.visibleFrame.width - chromeWidth, 1)
+      let maxHeight = max(screen.visibleFrame.height - chromeHeight, 1)
+      if contentWidth > maxWidth {
+        contentWidth = maxWidth
+        contentHeight = contentWidth * ratio.height / ratio.width
+      }
+      if contentHeight > maxHeight {
+        contentHeight = maxHeight
+        contentWidth = contentHeight * ratio.width / ratio.height
+      }
     }
-    window.contentAspectRatio = NSSize(width: dimensions.width, height: dimensions.height)
+
+    if abs(current.width - contentWidth) >= 0.5
+      || abs(current.height - contentHeight) >= 0.5
+    {
+      window.setContentSize(NSSize(width: contentWidth, height: contentHeight))
+    }
+
+    guard let screen = window.screen ?? NSScreen.main else { return }
+    var frame = window.frame
+    let visible = screen.visibleFrame
+    if frame.maxX > visible.maxX { frame.origin.x -= frame.maxX - visible.maxX }
+    if frame.maxY > visible.maxY { frame.origin.y -= frame.maxY - visible.maxY }
+    if frame.minX < visible.minX { frame.origin.x = visible.minX }
+    if frame.minY < visible.minY { frame.origin.y = visible.minY }
+    if abs(frame.origin.x - window.frame.origin.x) >= 0.5
+      || abs(frame.origin.y - window.frame.origin.y) >= 0.5
+    {
+      window.setFrame(frame, display: true)
+    }
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool {
