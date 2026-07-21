@@ -22,12 +22,13 @@ it idles at roughly zero CPU with a live stream.
 
 | Command | Shortcut | Action |
 | --- | --- | --- |
-| Actual Size | ⌘1 | Content size = active capture resolution |
-| Double Size | ⌘2 | Content size = 2× capture resolution |
+| Actual Size | ⌘1 | 1 video pixel = 1 screen pixel |
+| Double Size | ⌘2 | 1 video pixel = 2 screen pixels |
 | Enter Full Screen | ⌘F | Toggle full screen |
 
-Sizes clamp to the visible screen when needed. Actual Size and Double Size
-are unavailable with no video input or while full screen.
+Sizes use the window’s backing scale (Retina-aware) and clamp to the visible
+screen when needed. Actual Size and Double Size are unavailable with no video
+input or while full screen.
 
 ## Building
 

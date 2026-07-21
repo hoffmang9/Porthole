@@ -189,10 +189,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
   private var window: NSWindow!
   private var capturePanel: CapturePanel!
-  /// Active capture pixel size (`nil` = no input). Source of truth for aspect lock and size menus.
+  /// Active capture pixel size (`nil` = no input). Source of truth for aspect lock and size menus
+  /// (menus convert to points via `contentSize(forVideoPixels:magnification:)`).
   private var videoSize: CGSize?
 
-  /// Capture size usable for Actual Size / Double Size (`nil` when unavailable or full screen).
+  /// Capture pixel size usable for Actual Size / Double Size (`nil` when unavailable or full screen).
   private var scalableVideoSize: CGSize? {
     guard !window.styleMask.contains(.fullScreen),
       let videoSize, videoSize.width > 0, videoSize.height > 0
@@ -234,12 +235,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
   @objc func restoreActualSize(_ sender: Any?) {
     guard let size = scalableVideoSize else { return }
-    applyContentSize(size)
+    applyContentSize(contentSize(forVideoPixels: size, magnification: 1))
   }
 
   @objc func setDoubleSize(_ sender: Any?) {
     guard let size = scalableVideoSize else { return }
-    applyContentSize(NSSize(width: size.width * 2, height: size.height * 2))
+    applyContentSize(contentSize(forVideoPixels: size, magnification: 2))
+  }
+
+  /// Converts capture pixels to content points so 1 video pixel ≈ 1 screen pixel at 1×.
+  /// `setContentSize` takes points; on Retina, points ≠ pixels without dividing by
+  /// `backingScaleFactor`.
+  private func contentSize(forVideoPixels pixels: CGSize, magnification: CGFloat) -> NSSize {
+    let scale = max(window.backingScaleFactor, 1)
+    return NSSize(
+      width: pixels.width / scale * magnification,
+      height: pixels.height / scale * magnification)
   }
 
   func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
