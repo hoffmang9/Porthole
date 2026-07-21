@@ -381,16 +381,18 @@ let windowMenuItem = NSMenuItem()
 windowMenuItem.title = "Window"
 menubar.addItem(windowMenuItem)
 let windowMenu = NSMenu(title: "Window")
-windowMenu.addItem(
-  NSMenuItem(
-    title: "Actual Size",
-    action: #selector(AppDelegate.restoreActualSize(_:)),
-    keyEquivalent: "1"))
-windowMenu.addItem(
-  NSMenuItem(
-    title: "Double Size",
-    action: #selector(AppDelegate.setDoubleSize(_:)),
-    keyEquivalent: "2"))
+let actualSizeItem = NSMenuItem(
+  title: "Actual Size",
+  action: #selector(AppDelegate.restoreActualSize(_:)),
+  keyEquivalent: "1")
+actualSizeItem.target = delegate
+windowMenu.addItem(actualSizeItem)
+let doubleSizeItem = NSMenuItem(
+  title: "Double Size",
+  action: #selector(AppDelegate.setDoubleSize(_:)),
+  keyEquivalent: "2")
+doubleSizeItem.target = delegate
+windowMenu.addItem(doubleSizeItem)
 windowMenu.addItem(NSMenuItem.separator())
 windowMenu.addItem(
   NSMenuItem(
