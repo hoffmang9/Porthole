@@ -183,7 +183,7 @@ final class CapturePanel: NSView {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation {
   /// Fallback lock when there is no active video (matches the default 1024×768 window).
   private static let defaultContentAspectRatio = NSSize(width: 4, height: 3)
 
