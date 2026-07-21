@@ -14,9 +14,20 @@ it idles at roughly zero CPU with a live stream.
 - Auto-selects the first external video device on launch — zero-touch on boot
 - Hot-plug aware: devices appear/disappear from the picker as they connect
 - Device picker fades out when the mouse leaves the window
-- Window aspect lock and size follow the selected device’s active capture
-  format (4:3, 16:9, …), falling back to 4:3 with no input; ⌘F for full screen
+- Window aspect lock follows the selected device’s active capture format
+  (4:3, 16:9, …), falling back to 4:3 with no input
 - No dependencies beyond system frameworks
+
+## Window menu
+
+| Command | Shortcut | Action |
+| --- | --- | --- |
+| Actual Size | ⌘1 | Content size = active capture resolution |
+| Double Size | ⌘2 | Content size = 2× capture resolution |
+| Enter Full Screen | ⌘F | Toggle full screen |
+
+Sizes clamp to the visible screen when needed. Actual Size and Double Size
+are unavailable with no video input or while full screen.
 
 ## Building
 

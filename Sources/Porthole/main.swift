@@ -183,12 +183,29 @@ final class CapturePanel: NSView {
 
 // MARK: - App
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation {
   /// Fallback lock when there is no active video (matches the default 1024×768 window).
   private static let defaultContentAspectRatio = NSSize(width: 4, height: 3)
 
   private var window: NSWindow!
   private var capturePanel: CapturePanel!
+  /// Active capture pixel size (`nil` = no input). Source of truth for aspect lock and size menus.
+  private var videoSize: CGSize?
+
+  /// Capture size usable for Actual Size / Double Size (`nil` when unavailable or full screen).
+  private var scalableVideoSize: CGSize? {
+    guard !window.styleMask.contains(.fullScreen),
+      let videoSize, videoSize.width > 0, videoSize.height > 0
+    else {
+      return nil
+    }
+    return videoSize
+  }
+
+  private var videoAspectRatio: NSSize {
+    videoSize.map { NSSize(width: $0.width, height: $0.height) }
+      ?? Self.defaultContentAspectRatio
+  }
 
   func applicationDidFinishLaunching(_ note: Notification) {
     capturePanel = CapturePanel(frame: .zero)
@@ -215,26 +232,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     reshapeContentToMatchAspectRatio()
   }
 
+  @objc func restoreActualSize(_ sender: Any?) {
+    guard let size = scalableVideoSize else { return }
+    applyContentSize(size)
+  }
+
+  @objc func setDoubleSize(_ sender: Any?) {
+    guard let size = scalableVideoSize else { return }
+    applyContentSize(NSSize(width: size.width * 2, height: size.height * 2))
+  }
+
+  func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+    switch menuItem.action {
+    case #selector(restoreActualSize), #selector(setDoubleSize):
+      return scalableVideoSize != nil
+    default:
+      return true
+    }
+  }
+
   /// Locks resize to the video aspect and reshapes the window so the preview is not letterboxed.
   private func applyVideoDimensions(_ dimensions: CGSize?) {
-    let ratio =
-      dimensions.map { NSSize(width: $0.width, height: $0.height) }
-      ?? Self.defaultContentAspectRatio
-    window.contentAspectRatio = ratio
+    videoSize = dimensions
+    window.contentAspectRatio = videoAspectRatio
     reshapeContentToMatchAspectRatio()
   }
 
-  /// Fits content to `window.contentAspectRatio` within the visible screen. No-op while full screen.
+  /// Fits content to the current aspect within the visible screen. No-op while full screen.
   private func reshapeContentToMatchAspectRatio() {
-    guard !window.styleMask.contains(.fullScreen) else { return }
-    let ratio = window.contentAspectRatio
+    let ratio = videoAspectRatio
     guard ratio.width > 0, ratio.height > 0 else { return }
 
     let current = window.contentRect(forFrameRect: window.frame).size
     guard current.width > 0 else { return }
 
-    var contentWidth = current.width
-    var contentHeight = contentWidth * ratio.height / ratio.width
+    applyContentSize(
+      NSSize(
+        width: current.width,
+        height: current.width * ratio.height / ratio.width))
+  }
+
+  /// Applies `desired` content size (aspect preserved while clamping) and keeps the frame on-screen.
+  /// No-op while full screen.
+  private func applyContentSize(_ desired: NSSize) {
+    guard !window.styleMask.contains(.fullScreen) else { return }
+    guard desired.width > 0, desired.height > 0 else { return }
+
+    let current = window.contentRect(forFrameRect: window.frame).size
+    var contentWidth = desired.width
+    var contentHeight = desired.height
 
     if let screen = window.screen ?? NSScreen.main {
       let chromeWidth = window.frame.width - current.width
@@ -243,11 +289,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
       let maxHeight = max(screen.visibleFrame.height - chromeHeight, 1)
       if contentWidth > maxWidth {
         contentWidth = maxWidth
-        contentHeight = contentWidth * ratio.height / ratio.width
+        contentHeight = contentWidth * desired.height / desired.width
       }
       if contentHeight > maxHeight {
         contentHeight = maxHeight
-        contentWidth = contentHeight * ratio.width / ratio.height
+        contentWidth = contentHeight * desired.width / desired.height
       }
     }
 
@@ -320,20 +366,42 @@ app.delegate = delegate
 app.setActivationPolicy(.regular)
 
 let menubar = NSMenu()
+
 let appMenuItem = NSMenuItem()
 menubar.addItem(appMenuItem)
 let appMenu = NSMenu()
-appMenu.addItem(
-  NSMenuItem(
-    title: "Enter Full Screen",
-    action: #selector(NSWindow.toggleFullScreen(_:)),
-    keyEquivalent: "f"))
 appMenu.addItem(
   NSMenuItem(
     title: "Quit Porthole",
     action: #selector(NSApplication.terminate(_:)),
     keyEquivalent: "q"))
 appMenuItem.submenu = appMenu
+
+let windowMenuItem = NSMenuItem()
+windowMenuItem.title = "Window"
+menubar.addItem(windowMenuItem)
+let windowMenu = NSMenu(title: "Window")
+let actualSizeItem = NSMenuItem(
+  title: "Actual Size",
+  action: #selector(AppDelegate.restoreActualSize(_:)),
+  keyEquivalent: "1")
+actualSizeItem.target = delegate
+windowMenu.addItem(actualSizeItem)
+let doubleSizeItem = NSMenuItem(
+  title: "Double Size",
+  action: #selector(AppDelegate.setDoubleSize(_:)),
+  keyEquivalent: "2")
+doubleSizeItem.target = delegate
+windowMenu.addItem(doubleSizeItem)
+windowMenu.addItem(NSMenuItem.separator())
+windowMenu.addItem(
+  NSMenuItem(
+    title: "Enter Full Screen",
+    action: #selector(NSWindow.toggleFullScreen(_:)),
+    keyEquivalent: "f"))
+windowMenuItem.submenu = windowMenu
+app.windowsMenu = windowMenu
+
 app.mainMenu = menubar
 
 app.activate(ignoringOtherApps: true)
